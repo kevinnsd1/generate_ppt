@@ -1,0 +1,15 @@
+node_modules/
+
+package-lock.json
+/.vscode/*.json
+public/
+files/
+.env
+server/config/config.json
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# Office temp files
+~$*
