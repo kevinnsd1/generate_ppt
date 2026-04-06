@@ -68,30 +68,31 @@ function generateTitleContent(content: ContentData) {
 
 function generateTitleContentSlide() {
     let result = {
-        x: 0.56,
-        y: 3.08,
-        w: 13.07,
-        h: 1.83,
+        x: 0.8,
+        y: 2.8,    // Good padding from top of box (y=2.0)
+        w: 11.0,
+        h: 2.8,    // Taller to accommodate multi-line title in bigger box
         align: 'left',
+        valign: 'top',
         fontSize: 54,
-        color: 'FFFFFF',
-        fontFace: 'Arial',
-        bold: false, // Changed from true to false for "Medium" look
-        // fill: "F1F1F1",
+        color: '0D1B2A',
+        fontFace: 'Arial Black',
+        bold: true,
     };
     return result;
 }
 
 function generateSubTitleContentSlide() {
     let result = {
-        x: 0.56,
-        y: 4.26,
-        w: 7.33,
-        h: 0.74,
+        x: 0.8,
+        y: 5.55,   // Below title, inside the taller box (ends at y=7.0)
+        w: 8.5,
+        h: 0.38,
         align: 'left',
-        fontSize: 24,
-        color: 'FFFFFF',
-        // fill: "F1F1F1",
+        fontSize: 15,
+        color: '1A1A1A',
+        fontFace: 'Arial',
+        bold: false,
     };
     return result;
 }

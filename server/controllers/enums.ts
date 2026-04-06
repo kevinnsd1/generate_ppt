@@ -267,9 +267,12 @@ export const IMAGE_PATHS: Record<string, ImagePath> = {
     UPPERCASE: {
         path: 'https://raw.githubusercontent.com/gitbrent/PptxGenJS/master/demos/common/images/UPPERCASE.PNG',
     },
+    komdigiLogo: {
+        path: './public/image/komdigi_logo.png',
+    },
 };
 
-// ===== LOREM IPSUM =====
+// ===== LOREM IPSUM =====  
 
 export const LOREM_IPSUM_ENG: string =
     `Far far away, behind the word mountains, far from the countries Vokalia and Consonantia, there live the blind texts. Separated they live in Bookmarksgrove right at the coast of the Semantics, a large language ocean. A small river named Duden flows by their place and supplies it with the necessary regelialia.`;

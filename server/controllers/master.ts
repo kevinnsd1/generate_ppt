@@ -66,14 +66,69 @@ function createMasterSlides(pptx: any, colorChoice: string) {
 
     pptx.defineSlideMaster({
         title: 'TITLE_SLIDE',
-        background: {
-            data: chosenTitle,
-        },
+        background: { color: 'FFFFFF' }, 
         objects: [
-            //{ 'line':  { x:3.5, y:1.0, w:6.0, h:0.0, line:{color:'0088CC'}, lineSize:5 } },
-            //{ 'chart': { type:'PIE', data:[{labels:['R','G','B'], values:[10,10,5]}], options:{x:11.3, y:0.0, w:2, h:2, dataLabelFontSize:9} } },
-            // { 'image': { x: 0.5, y: 0.5, w: 1.47, h: 0.74, data: _media.nolimitLogoWhite } },
+            // === LOGO IMAGE (8.65cm x 4.37cm = 3.41" x 1.72") ===
+            { image: { 
+                path: IMAGE_PATHS.komdigiLogo.path, 
+                x: 0.4, y: 0.1, w: 3.41, h: 1.37 
+            } },
+
+            // === HEADER TEXT (top-right) ===
+            { text: { 
+                text: 'Direktorat Informasi Publik', 
+                options: { x: 7.5, y: 0.55, w: 5.35, h: 0.3, fontSize: 12, color: '1A1A1A', align: 'right', fontFace: 'Arial' } 
+            } },
+            { text: { 
+                text: 'Direktorat Jenderal Komunikasi Publik dan Media', 
+                options: { x: 7.5, y: 0.82, w: 5.35, h: 0.3, fontSize: 12, color: '1A1A1A', align: 'right', fontFace: 'Arial' } 
+            } },
+
+            // === BLUE CONTENT BOX (bigger, margin 0.6" each side) ===
+            // y=1.7, h=5.3 → ends at 7.0, leaving 0.5" white bottom
+            { rect: { x: 0.6, y: 1.7, w: 12.13, h: 5.3, fill: { color: 'DCF0F8' } } },
+
+            // === DECORATIVE CYAN BOX (right edge of blue box) ===
+            { rect: { x: 10.98, y: 1.7, w: 1.75, h: 0.55, fill: { color: '9ECFDE' } } },
+
+            // === FOOTER TEXT (near bottom of blue box) ===
+            { text: { 
+                text: 'DIREKTORAT INFORMASI PUBLIK', 
+                options: { x: 8.0, y: 6.45, w: 4.73, h: 0.45, fontSize: 17, color: '1A9BC4', align: 'right', fontFace: 'Arial', bold: false } 
+            } },
         ],
+    });
+
+    // =========================================================
+    // KOMDIGI_CONTENT — digunakan untuk semua halaman konten
+    // Memiliki logo + header yang sama dengan TITLE_SLIDE
+    // =========================================================
+    pptx.defineSlideMaster({
+        title: 'KOMDIGI_CONTENT',
+        background: { color: 'FFFFFF' },
+        objects: [
+            // === LOGO IMAGE ===
+            { image: { 
+                path: IMAGE_PATHS.komdigiLogo.path, 
+                x: 0.4, y: 0.1, w: 3.41, h: 1.37 
+            } },
+
+            // === HEADER TEXT (top-right) ===
+            { text: { 
+                text: 'Direktorat Informasi Publik', 
+                options: { x: 7.5, y: 0.55, w: 5.35, h: 0.3, fontSize: 12, color: '1A1A1A', align: 'right', fontFace: 'Arial' } 
+            } },
+            { text: { 
+                text: 'Direktorat Jenderal Komunikasi Publik dan Media', 
+                options: { x: 7.5, y: 0.82, w: 5.35, h: 0.3, fontSize: 12, color: '1A1A1A', align: 'right', fontFace: 'Arial' } 
+            } },
+
+        ],
+        slideNumber: {
+            x: 12.49, y: 7.1, w: 0.5, h: 0.3,
+            color: '888888', fontFace: 'Arial', fontSize: 10,
+            align: 'center', valign: 'middle',
+        },
     });
 
     pptx.defineSlideMaster({
