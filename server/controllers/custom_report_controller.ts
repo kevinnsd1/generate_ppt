@@ -1,4 +1,3 @@
-
 import db from '../models/index';
 // import { QueryTypes, col } from 'sequelize';
 import SuccessResponse from '../utils/successResponse';
@@ -19,6 +18,7 @@ import metricHandlers from '../metrics';
 import normalizeData = require('../utils/dataNormalizer');
 import { addLineSeparator } from '../utils/line';
 import { generateTitleContentSlide, generateSubTitleContentSlide } from '../utils/content';
+import komdigiSlideHandlers from './komdigi_slides';
 import { transformPosition, generatePositionWithSummary } from '../utils/position';
 import { renderSummaryBox, getWhiteCardConfig } from '../utils/summary';
 import { addNoDataMessage } from '../utils/noDataMessage';
@@ -172,11 +172,11 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
 
   const chosenTableColors = tableColorMap[colorChoice];
 
-
   let allFetch: Promise<any>[] = [];
   for (let i = 0; i < slides.length; i++) {
-    slides[i].contents[0].data.forEach((el) => {
-      const visualization = el.visualization;
+    if (slides[i].contents && slides[i].contents.length > 0 && slides[i].contents[0].data) {
+      slides[i].contents[0].data.forEach((el: any) => {
+        const visualization = el.visualization;
       if (visualization == 'sample_post' || visualization == 'sample_post_single') {
         el.details?.streamOutput?.forEach((post: any) => {
           if (post.socialMedia == 'instagram') {
@@ -228,13 +228,15 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
           }
         });
       }
-    });
+      });
+    }
   }
   try {
     const allResponse = await Promise.allSettled(allFetch);
     let resIdx = 0;
     for (let i = 0; i < slides.length; i++) {
-      slides[i].contents[0].data.forEach((el, idx1) => {
+      if (slides[i].contents && slides[i].contents.length > 0 && slides[i].contents[0].data) {
+        slides[i].contents[0].data.forEach((el: any, idx1: number) => {
         const visualization = el.visualization;
         if (visualization == 'sample_post' || visualization == 'sample_post_single') {
           el.details?.streamOutput?.forEach((post: any, idx2: number) => {
@@ -254,8 +256,9 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
           });
         }
       });
+      }
     }
-  } catch (error) { }
+  } catch (error) {}
   console.log('end pre-fetching sample post :', new Date());
 
   for (let i = 0; i < slides.length; i++) {
@@ -275,9 +278,15 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
         const isFirstSlide = i === 0;
         const hasSubtitle = subTitle && subTitle.length > 0;
         // User clarified pagePosition starts at 0. Checking both 0 and 1 to be safe.
-        const isPageOne = slide.pagePosition === 0 || slide.pagePosition === '0' || slide.pagePosition === 1 || slide.pagePosition === '1';
+        const isPageOne =
+          slide.pagePosition === 0 ||
+          slide.pagePosition === '0' ||
+          slide.pagePosition === 1 ||
+          slide.pagePosition === '1';
 
-        console.log(`[Generate PPT] Slide ${i}: titleSlide check. isFirst=${isFirstSlide}, hasSub=${hasSubtitle}, pg=${slide.pagePosition}`);
+        console.log(
+          `[Generate PPT] Slide ${i}: titleSlide check. isFirst=${isFirstSlide}, hasSub=${hasSubtitle}, pg=${slide.pagePosition}`,
+        );
 
         // Use TITLE_SLIDE (Design Cover) for the first slide check
         if (isFirstSlide || hasSubtitle || isPageOne) {
@@ -295,435 +304,12 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
           });
           slide.addText(titleSlide, { placeholder: 'separatorTitle' });
         }
-      } else if (slideType == 'executiveSummary') {
+      } else if (komdigiSlideHandlers[id] || komdigiSlideHandlers[slideType]) {
         // ======================================================
-        // EXECUTIVE SUMMARY SLIDE — 2 kolom bullet point
+        // KOMDIGI SPECIFIC CUSTOM SLIDES (Refactored)
         // ======================================================
-        const execSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
-
-        // Judul di tengah atas
-        execSlide.addText(titleSlide || 'RINGKASAN EKSEKUTIF', {
-          x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-          fontSize: 22, bold: true, color: '1A1A1A',
-          align: 'center', fontFace: 'Arial',
-        });
-
-        // Ambil data kolom dari payload
-        const execData = contents[0]?.data?.[0]?.details?.columns || [];
-        const colPositions = [
-          { x: 0.4,  w: 6.13 },  // Kolom kiri (Media Sosial) - Wider
-          { x: 6.8, w: 6.13 },  // Kolom kanan (Media Online) - Wider
-        ];
-
-        execData.forEach((col: any, colIdx: number) => {
-          const pos = colPositions[colIdx];
-          if (!pos) return;
-
-          // Bangun array text runs untuk satu kolom
-          const textRuns: any[] = [];
-
-          // Header kolom (tebal, warna gelap)
-          textRuns.push({
-            text: col.header || '',
-            options: { bold: true, fontSize: 13, color: '0D1B2A', breakLine: true },
-          });
-
-          // Setiap item dalam kolom
-          (col.items || []).forEach((item: any) => {
-            // Label bold + value biasa
-            textRuns.push({
-              text: `\u2022 `,
-              options: { bold: false, fontSize: 11, color: '444444' },
-            });
-            if (item.label) {
-              textRuns.push({
-                text: `${item.label}: `,
-                options: { bold: true, fontSize: 11, color: '0D1B2A' },
-              });
-            }
-            textRuns.push({
-              text: item.value || '',
-              options: { bold: false, fontSize: 11, color: '1A1A1A', breakLine: true },
-            });
-          });
-
-          execSlide.addText(textRuns, {
-            x: pos.x, y: 2.3, w: pos.w, h: 4.8,
-            valign: 'top', fontFace: 'Arial',
-            align: 'justify', // Rata kanan-kiri
-            lineSpacingMultiple: 1.1, // Beri jarak sedikit biar enak dibaca
-          });
-        });
-
-      } else if (slideType == 'volumeChart') {
-        // ======================================================
-        // VOLUME CHART SLIDE — 2 summary + 2 bar charts
-        // ======================================================
-        const volSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
-
-        // Judul Utama (Centered)
-        volSlide.addText(titleSlide || 'VOLUME PERCAKAPAN DAN PEMBERITAAN', {
-          x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-          fontSize: 22, bold: true, color: '1A1A1A',
-          align: 'center', fontFace: 'Arial',
-        });
-
-        const volData = contents[0]?.data?.[0]?.details || {};
-
-        // === LEFT SIDE (Media Sosial) ===
-        const left = volData.left || {};
-        // Label header kiri
-        volSlide.addText(left.label || 'Media Sosial', {
-          x: 0.6, y: 2.3, w: 6.0, h: 0.4,
-          fontSize: 18, bold: true, color: '1A1A1A', align: 'center', fontFace: 'Arial'
-        });
-        // Summary Kiri
-        volSlide.addText(left.summary || '', {
-          x: 0.6, y: 2.75, w: 6.0, h: 1.5,
-          fontSize: 11, color: '1A1A1A', align: 'justify', fontFace: 'Arial',
-          lineSpacingMultiple: 1.1
-        });
-        // Chart Kiri (Bar)
-        if (left.chart) {
-          const chartData = [{
-            name: 'Value',
-            labels: left.chart.map((c: any) => c.name),
-            values: left.chart.map((c: any) => c.value)
-          }];
-          volSlide.addChart(pptx.charts.BAR, chartData, {
-            x: 0.6, y: 4.2, w: 6.0, h: 2.5,
-            barDir: 'col',
-            chartColors: ['00BAEC', 'F37021'], // Blue, Orange
-            showValue: true,
-            dataLabelPosition: 'outEnd',
-            dataLabelFontSize: 10,
-            valAxisHidden: false,
-            valGridLine: { style: 'none' },
-            catAxisLineShow: true,
-            showLegend: true,
-            legendPos: 'b'
-          });
-        }
-
-        // === RIGHT SIDE (Media Online) ===
-        const right = volData.right || {};
-        // Label header kanan
-        volSlide.addText(right.label || 'Media Online', {
-          x: 6.75, y: 2.3, w: 6.0, h: 0.4,
-          fontSize: 18, bold: true, color: '1A1A1A', align: 'center', fontFace: 'Arial'
-        });
-        // Summary Kanan
-        volSlide.addText(right.summary || '', {
-          x: 6.75, y: 2.75, w: 6.0, h: 1.5,
-          fontSize: 11, color: '1A1A1A', align: 'justify', fontFace: 'Arial',
-          lineSpacingMultiple: 1.1
-        });
-        // Chart Kanan (Bar)
-        if (right.chart) {
-          const chartData = [{
-            name: 'Value',
-            labels: right.chart.map((c: any) => c.name),
-            values: right.chart.map((c: any) => c.value)
-          }];
-          volSlide.addChart(pptx.charts.BAR, chartData, {
-            x: 6.75, y: 4.2, w: 6.0, h: 2.5,
-            barDir: 'col',
-            chartColors: ['00BAEC', 'F37021'], // Blue, Orange
-            showValue: true,
-            dataLabelPosition: 'outEnd',
-            dataLabelFontSize: 10,
-            valAxisHidden: false,
-            valGridLine: { style: 'none' },
-            catAxisLineShow: true,
-            showLegend: true,
-            legendPos: 'b'
-          });
-        }
-
-        // Footer Note
-        if (volData.footerNote) {
-          volSlide.addText(volData.footerNote, {
-            x: 0.6, y: 7.0, w: 12.13, h: 0.3,
-            fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
-          });
-        }
-
-      } else if (slideType == 'trendChart') {
-        // ======================================================
-        // TREND CHART SLIDE — 2 stacked line charts + sidebar
-        // ======================================================
-        const trSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
-        const trData = contents[0]?.data?.[0]?.details || {};
-
-        // Judul Utama (Centered)
-        trSlide.addText(titleSlide || 'TREN HARIAN PERCAKAPAN DAN PEMBERITAAN', {
-          x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-          fontSize: 20, bold: true, color: '1A1A1A',
-          align: 'center', fontFace: 'Arial',
-        });
-
-        const chartX = 0.5;
-        const chartW = 9.0;
-        const summaryX = 9.8;
-        const summaryW = 3.2;
-
-        // --- TOP SECTION (PERCAKAPAN) ---
-        const top = trData.topChart || {};
-        trSlide.addText(top.label || 'PERCAKAPAN', {
-          x: chartX, y: 1.8, w: chartW, h: 0.3,
-          fontSize: 16, color: '666666', align: 'center', fontFace: 'Arial'
-        });
-
-        if (top.series) {
-          const chartData = top.series.map((s: any) => ({
-            name: s.name,
-            labels: s.data.map((d: any) => {
-               // Format d-MMM-yy (e.g. 6-Mar-26)
-               const date = new Date(d.timestamp);
-               const day = date.getDate();
-               const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-               const mon = months[date.getMonth()];
-               const yr = date.getFullYear().toString().slice(-2);
-               return `${day}-${mon}-${yr}`;
-            }),
-            values: s.data.map((d: any) => d.value)
-          }));
-
-          trSlide.addChart(pptx.charts.LINE, chartData, {
-            x: chartX, y: 2.1, w: chartW, h: 2.4,
-            chartColors: ['00BAEC', 'F37021'],
-            lineDataSymbol: 'circle',
-            lineDataSymbolSize: 6,
-            showValue: true,
-            dataLabelPosition: 't',
-            dataLabelColor: '000000',
-            dataLabelFontSize: 9,
-            valAxisHidden: false,
-            valAxisLineShow: true, // Show vertical line
-            valGridLine: { style: 'none' },
-            catAxisLineShow: true, // Show horizontal line
-            catAxisLabelFontSize: 9,
-            catAxisLabelRotate: -45,
-            catAxisCrossingPos: 'autoZero', // Try to start axis from zero
-            valAxisCrossingPos: 'autoZero',
-            showLegend: true,
-            legendPos: 'b'
-          });
-        }
-
-        // Summary Top
-        if (top.summary) {
-          const bulletPoints = top.summary.map((s: string) => ({ text: s, options: { bullet: true, fontSize: 10, color: '1A1A1A' } }));
-          trSlide.addText(bulletPoints, {
-            x: summaryX, y: 2.1, w: summaryW, h: 2.4,
-            valign: 'top', align: 'justify', fontFace: 'Arial', lineSpacingMultiple: 1.1
-          });
-        }
-
-        // --- BOTTOM SECTION (PEMBERITAAN) ---
-        const bottom = trData.bottomChart || {};
-        trSlide.addText(bottom.label || 'PEMBERITAAN', {
-          x: chartX, y: 4.6, w: chartW, h: 0.3,
-          fontSize: 16, color: '666666', align: 'center', fontFace: 'Arial'
-        });
-
-        if (bottom.series) {
-          const chartData = bottom.series.map((s: any) => ({
-            name: s.name,
-            labels: s.data.map((d: any) => {
-               const date = new Date(d.timestamp);
-               const day = date.getDate();
-               const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-               const mon = months[date.getMonth()];
-               const yr = date.getFullYear().toString().slice(-2);
-               return `${day}-${mon}-${yr}`;
-            }),
-            values: s.data.map((d: any) => d.value)
-          }));
-
-          trSlide.addChart(pptx.charts.LINE, chartData, {
-            x: chartX, y: 4.9, w: chartW, h: 2.1,
-            chartColors: ['00BAEC', 'F37021'],
-            lineDataSymbol: 'circle',
-            lineDataSymbolSize: 6,
-            showValue: true,
-            dataLabelPosition: 't',
-            dataLabelColor: '000000',
-            dataLabelFontSize: 9,
-            valAxisHidden: false,
-            valAxisLineShow: true, // Show vertical line
-            valGridLine: { style: 'none' },
-            catAxisLineShow: true, // Show horizontal line
-            catAxisLabelFontSize: 9,
-            catAxisLabelRotate: -45,
-            catAxisCrossingPos: 'autoZero', // Try to start axis from zero
-            valAxisCrossingPos: 'autoZero',
-            showLegend: true,
-            legendPos: 'b'
-          });
-        }
-
-        // Summary Bottom
-        if (bottom.summary) {
-          const bulletPoints = bottom.summary.map((s: string) => ({ text: s, options: { bullet: true, fontSize: 10, color: '1A1A1A' } }));
-          trSlide.addText(bulletPoints, {
-            x: summaryX, y: 5.5, w: summaryW, h: 1.5,
-            valign: 'top', align: 'justify', fontFace: 'Arial', lineSpacingMultiple: 1.1
-          });
-        }
-
-        // Footer Note
-        if (trData.footerNote) {
-          trSlide.addText(trData.footerNote, {
-            x: 0.6, y: 7.2, w: 12.13, h: 0.3,
-            fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
-          });
-        }
-
-      } else if (slideType == 'hourlyTrendChart') {
-        // ======================================================
-        // HOURLY TREND CHART SLIDE — Wide chart + Bottom summary
-        // ======================================================
-        const hrSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
-        const hrData = contents[0]?.data?.[0]?.details || {};
-
-        // Judul Utama (Centered)
-        hrSlide.addText(titleSlide || 'TREN PERCAKAPAN PER JAM DI MEDIA SOSIAL', {
-          x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-          fontSize: 20, bold: true, color: '1A1A1A',
-          align: 'center', fontFace: 'Arial',
-        });
-
-        // --- CHART SECTION (Wide) ---
-        if (hrData.series) {
-          const chartData = hrData.series.map((s: any) => ({
-            name: s.name,
-            labels: s.data.map((d: any) => {
-               // Show only hour if space is tight, or specific format
-               // 03 6 9 12... 
-               const date = new Date(d.timestamp);
-               const hours = date.getHours();
-               const day = date.getDate();
-               const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-               const mon = months[date.getMonth()];
-               // Return hours for major ticks, or combined
-               return `${hours}\n${day}-${mon}`;
-            }),
-            values: s.data.map((d: any) => d.value)
-          }));
-
-          hrSlide.addChart(pptx.charts.LINE, chartData, {
-            x: 0.6, y: 2.1, w: 12.13, h: 3.8,
-            chartColors: ['00BAEC'], // Single Blue for Talk
-            lineDataSymbol: 'none', // Too many points for symbols
-            showValue: false, // Too many points for values
-            valAxisHidden: false,
-            valAxisLineShow: true,
-            valGridLine: { style: 'none' },
-            catAxisLineShow: true,
-            catAxisLabelFontSize: 8,
-            catAxisLabelRotate: 0,
-            catAxisCrossingPos: 'autoZero',
-            valAxisCrossingPos: 'autoZero',
-            showLegend: false
-          });
-        }
-
-        // --- SUMMARY SECTION (Bottom) ---
-        if (hrData.summary) {
-          const bulletPoints = hrData.summary.map((s: string) => ({ 
-            text: s, 
-            options: { bullet: true, fontSize: 11, color: '1A1A1A' } 
-          }));
-          hrSlide.addText(bulletPoints, {
-            x: 0.6, y: 6.1, w: 12.13, h: 1.0,
-            valign: 'top', align: 'justify', fontFace: 'Arial', lineSpacingMultiple: 1.1
-          });
-        }
-
-        // Footer Note
-        if (hrData.footerNote) {
-          hrSlide.addText(hrData.footerNote, {
-            x: 0.6, y: 7.2, w: 12.13, h: 0.3,
-            fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
-          });
-        }
-
-      } else if (slideType == 'socialMediaDetail') {
-        // ======================================================
-        // SOCIAL MEDIA DETAIL SLIDE — Pie Chart + Summary
-        // ======================================================
-        const smSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
-        const smData = contents[0]?.data?.[0]?.details || {};
-
-        // Judul Utama (Centered)
-        smSlide.addText(titleSlide || 'RINCIAN MEDIA SOSIAL', {
-          x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-          fontSize: 20, bold: true, color: '1A1A1A',
-          align: 'center', fontFace: 'Arial',
-        });
-
-        // --- SUMMARY TEXT (Top) ---
-        if (smData.summary) {
-          smSlide.addText(smData.summary, {
-            x: 1.25, y: 2.1, w: 10.5, h: 1.0,
-            fontSize: 14, color: '1A1A1A', align: 'center', valign: 'top', fontFace: 'Arial',
-            lineSpacingMultiple: 1.1
-          });
-        }
-
-        // --- PIE CHART SECTION ---
-        if (smData.chartData) {
-          // Standard Platform Colors
-          const colorMap: any = {
-             'instagram': '833AB4', // Purple
-             'twitter': '1DA1F2',   // Light Blue
-             'tiktok': '000000',    // Black
-             'youtube': 'FF0000',   // Red
-             'facebook': '1877F2'   // Blue
-          };
-
-          const chartData = [{
-            name: 'Platform Distribution',
-            labels: smData.chartData.map((c: any) => {
-              // Capitalize first letter for legend
-              return c.name.charAt(0).toUpperCase() + c.name.slice(1);
-            }),
-            values: smData.chartData.map((c: any) => c.value)
-          }];
-
-          const chartColors = smData.chartData.map((c: any) => colorMap[c.name.toLowerCase()] || 'CCCCCC');
-
-          smSlide.addChart(pptx.charts.PIE, chartData, {
-            x: 3.25, y: 2.6, w: 6.83, h: 3.6, // Centered & moved up
-            chartColors: chartColors,
-            showValue: true,
-            showPercent: false,
-            dataLabelColor: '000000', // Black labels for visibility outside
-            dataLabelFontSize: 10,
-            dataLabelPosition: 'outEnd', // Fixed clipping by moving labels outside
-            showLegend: true,
-            legendPos: 'r',
-            legendFontSize: 11,
-          });
-        }
-
-        // --- TOTAL LABEL (Exactly Centered under chart) ---
-        if (smData.totalLabel) {
-          smSlide.addText(smData.totalLabel, {
-            x: 0, y: 6.25, w: 13.33, h: 0.4, // Full width to ensure perfect centering
-            fontSize: 20, bold: true, color: '1A1A1A', align: 'center', fontFace: 'Arial'
-          });
-        }
-
-        // Footer Note (Exactly Centered with smaller gap)
-        if (smData.footerNote) {
-          smSlide.addText(smData.footerNote, {
-            x: 0, y: 6.75, w: 13.33, h: 0.3, // Full width to ensure perfect centering
-            fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
-          });
-        }
-
+        const handler = komdigiSlideHandlers[id] || komdigiSlideHandlers[slideType];
+        handler(pptx, contents[0], titleSlide);
       } else {
         let slide = pptx.addSlide({
           masterName: 'MASTER_PLAIN',
@@ -799,7 +385,6 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
           summaryConfig.position === 'left'
         ) {
           effectiveDataLength = Math.min(datas.length, 3); // Max 3 items when summary is on left
-
         }
 
         for (let counter = 0; counter < effectiveDataLength; counter++) {
@@ -807,7 +392,9 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
 
           // Use Type Assertion if necessary or just ensure SummaryConfig is compatible
           let generatedPos = generatePositionWithSummary(slideType, counter, summaryConfig as any);
-          console.log(`DEBUG: slideType=${slideType}, counter=${counter}, summaryConfig=${JSON.stringify(summaryConfig)}, generatedPos=${JSON.stringify(generatedPos)}`);
+          console.log(
+            `DEBUG: slideType=${slideType}, counter=${counter}, summaryConfig=${JSON.stringify(summaryConfig)}, generatedPos=${JSON.stringify(generatedPos)}`,
+          );
           let position = transformPosition(generatedPos, 0, 0.48);
 
           // Check if data item is empty (no metric and no visualization)

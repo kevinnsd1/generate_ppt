@@ -1,0 +1,70 @@
+export default function buildPostExamples(pptx: any, contents: any, titleSlide: string) {
+  // ======================================================
+  // CONTOH POSTINGAN SLIDE — 3x2 Grid Images
+  // ======================================================
+  const peSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
+  const peData = contents?.data?.[0]?.details || {};
+
+  // Judul Utama
+  peSlide.addText(titleSlide || 'CONTOH POSTINGAN', {
+    x: 2.5, y: 1.45, w: 8.33, h: 0.55,
+    fontSize: 20, bold: true, color: '1A1A1A',
+    align: 'center', fontFace: 'Arial',
+  });
+
+  // --- GRID SECTION ---
+  if (peData.images && Array.isArray(peData.images)) {
+    // Definisi Grid (3 kolom, 2 baris)
+    const startX = 0.6;
+    const startY = 2.4;
+    const colGap = 0.25;
+    const rowGap = 0.25;
+    const blockW = 3.87; // Total ~12.13 width
+    const blockH = 2.1;
+
+    peData.images.forEach((imgObj: any, index: number) => {
+      if (index >= 6) return; // Hanya muat maksimal 6 (3x2)
+
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+
+      const currX = startX + (col * (blockW + colGap));
+      const currY = startY + (row * (blockH + rowGap));
+
+      // Draw bounding box (rounded rectangle ringan)
+      peSlide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
+        x: currX, y: currY, w: blockW, h: blockH,
+        fill: 'FFFFFF', line: { color: 'B3C6E7', width: 1 }, rectRadius: 0.1
+      });
+
+      // Draw Image (contain to fit inside bounding box)
+      if (imgObj.image) {
+        let imgStr = imgObj.image;
+        const addImageReq: any = {
+           x: currX + 0.1, y: currY + 0.1, w: blockW - 0.2, h: blockH - 0.2,
+           sizing: { type: 'contain', w: blockW - 0.2, h: blockH - 0.2 }
+        };
+
+        if (imgStr.startsWith('http')) {
+          addImageReq.path = imgStr;
+        } else {
+          imgStr = imgStr.replace(/^data:/, '');
+          if (!imgStr.startsWith('image/')) {
+            imgStr = 'image/png;base64,' + imgStr;
+          }
+          addImageReq.data = imgStr;
+        }
+
+        peSlide.addImage(addImageReq);
+      }
+    });
+  }
+
+  // Footer Note
+  if (peData.footerNote) {
+    peSlide.addText(peData.footerNote, {
+      x: 0, y: 7.2, w: 13.33, h: 0.3,
+      fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
+    });
+  }
+}
