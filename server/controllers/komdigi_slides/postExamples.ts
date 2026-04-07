@@ -48,9 +48,13 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
         if (imgStr.startsWith('http')) {
           addImageReq.path = imgStr;
         } else {
-          imgStr = imgStr.replace(/^data:/, '');
-          if (!imgStr.startsWith('image/')) {
-            imgStr = 'image/png;base64,' + imgStr;
+          // Pastikan format data:image/...;base64, lengkap
+          if (!imgStr.startsWith('data:')) {
+            if (imgStr.startsWith('image/')) {
+              imgStr = 'data:' + imgStr;
+            } else {
+              imgStr = 'data:image/png;base64,' + imgStr;
+            }
           }
           addImageReq.data = imgStr;
         }
