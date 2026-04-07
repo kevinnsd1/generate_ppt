@@ -123,14 +123,10 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
   let slides: Slide[] = req.body.slides;
   slides = splitSlidesWithLargeTables(slides);
 
-  let randomString = (Math.random() + 1).toString(36).substring(7);
-  let fileName = formattedReportName + '-' + randomString + '.pptx';
-  let fullPathAndFileName = path + fileName;
-
-  let advancedResults = {
-    fileName: fileName,
-    filePath: fullPathAndFileName,
-  };
+  // No need for physical filename/path logic anymore, returning as Buffer
+  // let randomString = (Math.random() + 1).toString(36).substring(7);
+  // let fileName = formattedReportName + '-' + randomString + '.pptx';
+  // let fullPathAndFileName = path + fileName;
 
   let pptx = new pptxgenjs();
   pptx.layout = 'LAYOUT_WIDE';
@@ -430,12 +426,15 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
 
   pptx.addSlide('THANKS_SLIDE');
 
-  await pptx.writeFile({ fileName: fullPathAndFileName });
-
+  const buffer = await pptx.write('nodebuffer') as Buffer;
+  
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+  res.setHeader('Content-Disposition', `attachment; filename="${formattedReportName}.pptx"`);
+  
   browser.close();
-  successResponse.resultSuccessful(req, res, advancedResults);
+  res.send(buffer);
 
-  console.log(`Finished generate ppt for: ${fileName}`);
+  console.log(`Finished generate ppt (Buffer) for: ${reportName}`);
 });
 
 /**
