@@ -40,13 +40,16 @@ export default function buildTrendChart(pptx: any, contents: any, titleSlide: st
     const chartData = top.series.map((s: any) => ({
       name: s.name,
       labels: s.data.map((d: any) => {
-        // Format d-MMM-yy (e.g. 6-Mar-26)
-        const date = new Date(d.timestamp);
-        const day = date.getDate();
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const mon = months[date.getMonth()];
-        const yr = date.getFullYear().toString().slice(-2);
-        return `${day}-${mon}-${yr}`;
+        const ts = d.timestamp || '';
+        const date = new Date(ts);
+        if (!isNaN(date.getTime())) {
+          const day = date.getDate();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const mon = months[date.getMonth()];
+          const yr = date.getFullYear().toString().slice(-2);
+          return `${day}-${mon}-${yr}`;
+        }
+        return ts; // Fallback to raw string if parsing fails
       }),
       values: s.data.map((d: any) => d.value),
     }));
@@ -111,12 +114,16 @@ export default function buildTrendChart(pptx: any, contents: any, titleSlide: st
     const chartData = bottom.series.map((s: any) => ({
       name: s.name,
       labels: s.data.map((d: any) => {
-        const date = new Date(d.timestamp);
-        const day = date.getDate();
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const mon = months[date.getMonth()];
-        const yr = date.getFullYear().toString().slice(-2);
-        return `${day}-${mon}-${yr}`;
+        const ts = d.timestamp || '';
+        const date = new Date(ts);
+        if (!isNaN(date.getTime())) {
+          const day = date.getDate();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const mon = months[date.getMonth()];
+          const yr = date.getFullYear().toString().slice(-2);
+          return `${day}-${mon}-${yr}`;
+        }
+        return ts;
       }),
       values: s.data.map((d: any) => d.value),
     }));

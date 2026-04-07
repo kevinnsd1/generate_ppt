@@ -9,10 +9,12 @@ import GlobalHelper from '../helpers/GlobalHelper';
 import pptxgenjs from 'pptxgenjs';
 import axios from 'axios';
 import pathExpress from 'path';
+import fs from 'fs';
 import puppeteer, { Browser } from 'puppeteer';
 import { generateInstagramImage } from './puppeteerGetInstagramThumbnail';
 import { generateTweetThumbnail } from './puppeteerGetTwitterThumbnail';
 import { generateFacebookThumbnail } from './puppeteerGetFacebookThumbnail';
+import { generateWordcloudImage } from './puppeteerGenerateImage';
 // import * as metricHandlers from '../metrics';
 import metricHandlers from '../metrics';
 import normalizeData = require('../utils/dataNormalizer');
@@ -169,92 +171,163 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
   const chosenTableColors = tableColorMap[colorChoice];
 
   let allFetch: Promise<any>[] = [];
+  const tempDir = pathExpress.join(__dirname, '../../exports/temp/');
+  let tempFiles: string[] = []; // Track temp files for cleanup
+
   for (let i = 0; i < slides.length; i++) {
     if (slides[i].contents && slides[i].contents.length > 0 && slides[i].contents[0].data) {
       slides[i].contents[0].data.forEach((el: any) => {
         const visualization = el.visualization;
-      if (visualization == 'sample_post' || visualization == 'sample_post_single') {
-        el.details?.streamOutput?.forEach((post: any) => {
-          if (post.socialMedia == 'instagram') {
-            const instagramImage = generateInstagramImage({
-              browser,
-              url: post.link,
-            });
-            allFetch.push(instagramImage);
-          } else if (post.socialMedia == 'twitter') {
-            const twitterImage = generateTweetThumbnail({
-              browser,
-              url: post.link,
-              socialMedia: post.socialMedia,
-            });
-            allFetch.push(twitterImage);
-          } else if (post.socialMedia == 'facebook') {
-            const facebookImage = generateFacebookThumbnail({
-              url: post.link,
-              socialMedia: post.socialMedia,
-            });
-            allFetch.push(facebookImage);
-          }
-          // else if (post.socialMedia == 'tiktok') {
-          //   tiktokImage = generateDynamicThumbnail({
-          //     browser,
-          //     url: post.link,
-          //     socialMedia: post.socialMedia,
-          //   });
-          //   allFetch.push(tiktokImage);
-          // } else if (post.socialMedia == 'youtube') {
-          //   youtubeImage = generateDynamicThumbnail({
-          //     browser,
-          //     url: post.link,
-          //     socialMedia: post.socialMedia,
-          //   });
-          //   allFetch.push(youtubeImage);
-          // }
-          else {
-            allFetch.push(
-              axios.get(
-                // `https://crawlercluster.dashboard.nolimit.id/media-preview/get-preview?social_media=${post.socialMedia}&uri=${post.link}&force_fetch=true`,
-                `https://crawlercluster.dashboard.nolimit.id/media-preview/thumbnail?link=${post.link}`,
-                {
+        if (visualization == 'sample_post' || visualization == 'sample_post_single') {
+          el.details?.streamOutput?.forEach((post: any) => {
+            if (post.socialMedia == 'instagram') {
+              const instagramImage = generateInstagramImage({
+                browser,
+                url: post.link,
+              });
+              allFetch.push(instagramImage);
+            } else if (post.socialMedia == 'twitter') {
+              const twitterImage = generateTweetThumbnail({
+                browser,
+                url: post.link,
+                socialMedia: post.socialMedia,
+              });
+              allFetch.push(twitterImage);
+            } else if (post.socialMedia == 'facebook') {
+              const facebookImage = generateFacebookThumbnail({
+                url: post.link,
+                socialMedia: post.socialMedia,
+              });
+              allFetch.push(facebookImage);
+            } else {
+              allFetch.push(
+                axios.get(`https://crawlercluster.dashboard.nolimit.id/media-preview/thumbnail?link=${post.link}`, {
                   responseType: 'arraybuffer',
                   timeout: 45000,
-                },
-              ),
-            );
+                }),
+              );
+            }
+          });
+        } else if (visualization == 'wordcloud') {
+          const wcData = el.details || {};
+          
+          // Helper function to generate white background image and return path
+          const fetchAndRenderWordcloud = async (sideData: any, side: string) => {
+            if (!sideData) return { success: false };
+
+            // 1. If payload provides nameValue or data array, use the native D3 Wordcloud generator
+            let dataArr = sideData.nameValue || sideData.data;
+            if (Array.isArray(dataArr) && dataArr.length > 0) {
+              try {
+                // generateWordcloudImage expects a trailing slash
+                const pathWithSlash = tempDir.endsWith(pathExpress.sep) ? tempDir : tempDir + pathExpress.sep;
+                const imageName = await generateWordcloudImage({ 
+                   browser, 
+                   pathDir: pathWithSlash, 
+                   data: dataArr, 
+                   id: `komdigi_${side}_${Date.now()}` 
+                });
+                const fullPath = pathExpress.join(tempDir, imageName);
+                return { success: true, path: fullPath, side };
+              } catch (e) {
+                console.error(`Native wordcloud generation failed for ${side}`, e);
+                // Fallback to image property if native fails
+              }
+            }
+
+            // 2. If it's a URL or Base64 string, wrap in white HTML background
+            const imageSrc = sideData.image;
+            if (!imageSrc) return { success: false };
+
+            const tempPath = pathExpress.join(tempDir, `wc_${side}_${Date.now()}_${Math.random().toString(36).substring(7)}.png`);
+            try {
+              const page = await Math.random(); // Dummy var, we'll use the existing browser instance
+              const wcPage = await browser.newPage();
+              await wcPage.setViewport({ width: 800, height: 400 });
+              
+              await wcPage.setContent(`
+                <body style="margin:0;background:white;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+                  <img style="max-width:100%;max-height:100%;object-fit:contain;" src="${imageSrc}" />
+                </body>
+              `, { waitUntil: 'networkidle0' });
+              
+              await wcPage.screenshot({ path: tempPath, omitBackground: false });
+              await wcPage.close();
+              return { success: true, path: tempPath, side };
+            } catch (e) {
+              console.error(`Puppeteer screenshot failed for wordcloud ${side}`, e);
+              return { success: false };
+            }
+          };
+
+          if (wcData.left) {
+            allFetch.push(fetchAndRenderWordcloud(wcData.left, 'left'));
           }
-        });
-      }
+          if (wcData.right) {
+            allFetch.push(fetchAndRenderWordcloud(wcData.right, 'right'));
+          }
+        }
       });
     }
   }
+
   try {
     const allResponse = await Promise.allSettled(allFetch);
     let resIdx = 0;
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
     for (let i = 0; i < slides.length; i++) {
       if (slides[i].contents && slides[i].contents.length > 0 && slides[i].contents[0].data) {
         slides[i].contents[0].data.forEach((el: any, idx1: number) => {
-        const visualization = el.visualization;
-        if (visualization == 'sample_post' || visualization == 'sample_post_single') {
-          el.details?.streamOutput?.forEach((post: any, idx2: number) => {
-            if (
-              allResponse[resIdx].status == 'fulfilled' &&
-              (allResponse[resIdx] as PromiseFulfilledResult<any>).value &&
-              (allResponse[resIdx] as PromiseFulfilledResult<any>).value.data
-            ) {
-              slides[i].contents[0].data[idx1].details.streamOutput[idx2].imgBase64 = Buffer.from(
-                (allResponse[resIdx] as PromiseFulfilledResult<any>).value.data,
-                'binary',
-              ).toString('base64');
-            } else {
-              slides[i].contents[0].data[idx1].details.streamOutput[idx2].imgBase64 = '';
+          const visualization = el.visualization;
+          if (visualization == 'sample_post' || visualization == 'sample_post_single') {
+            el.details?.streamOutput?.forEach((post: any, idx2: number) => {
+              if (
+                allResponse[resIdx].status == 'fulfilled' &&
+                (allResponse[resIdx] as PromiseFulfilledResult<any>).value &&
+                (allResponse[resIdx] as PromiseFulfilledResult<any>).value.data
+              ) {
+                slides[i].contents[0].data[idx1].details.streamOutput[idx2].imgBase64 = Buffer.from(
+                  (allResponse[resIdx] as PromiseFulfilledResult<any>).value.data,
+                  'binary',
+                ).toString('base64');
+              } else {
+                slides[i].contents[0].data[idx1].details.streamOutput[idx2].imgBase64 = '';
+              }
+              resIdx++;
+            });
+          } else if (visualization == 'wordcloud') {
+            const wcData = el.details || {};
+            // Assign paths from our newly fetched Puppeteer screenshots
+            if (wcData.left) {
+              const result = (allResponse[resIdx] as PromiseFulfilledResult<any>)?.value;
+              if (result && result.success && result.side === 'left') {
+                tempFiles.push(result.path);
+                try {
+                  const b64 = require('fs').readFileSync(result.path).toString('base64');
+                  slides[i].contents[0].data[idx1].details.left.image = 'data:image/png;base64,' + b64;
+                } catch(e) { console.error('Error reading wordcloud left img', e); }
+              }
+              resIdx++;
             }
-            resIdx++;
-          });
-        }
-      });
+            if (wcData.right) {
+              const result = (allResponse[resIdx] as PromiseFulfilledResult<any>)?.value;
+              if (result && result.success && result.side === 'right') {
+                tempFiles.push(result.path);
+                try {
+                  const b64 = require('fs').readFileSync(result.path).toString('base64');
+                  slides[i].contents[0].data[idx1].details.right.image = 'data:image/png;base64,' + b64;
+                } catch(e) { console.error('Error reading wordcloud right img', e); }
+              }
+              resIdx++;
+            }
+          }
+        });
       }
     }
-  } catch (error) {}
+  } catch (error) {
+    console.error('Error pre-fetching images:', error);
+  }
   console.log('end pre-fetching sample post :', new Date());
 
   for (let i = 0; i < slides.length; i++) {
@@ -423,8 +496,11 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
       }
     }
   }
-
-  pptx.addSlide('THANKS_SLIDE');
+  // Only add default thanks slide if a custom closing slide wasn't provided
+  const hasCustomClosing = slides.some(s => s.slideType === 'closing' || s.id === 'closing');
+  if (!hasCustomClosing) {
+    pptx.addSlide('THANKS_SLIDE');
+  }
 
   const buffer = await pptx.write('nodebuffer') as Buffer;
   
@@ -433,6 +509,17 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
   
   browser.close();
   res.send(buffer);
+
+  // Cleanup: delete temp files
+  setTimeout(() => {
+    tempFiles.forEach((file) => {
+      try {
+        if (fs.existsSync(file)) fs.unlinkSync(file);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+    });
+  }, 5000); // Wait 5s to ensure PPTXGenJS is done reading them
 
   console.log(`Finished generate ppt (Buffer) for: ${reportName}`);
 });

@@ -153,9 +153,9 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
         sentSlide.addImage({
           path: iconUrl,
           x: 6.7,
-          y: 4.15 + idx * 0.53,
-          w: 0.42,
-          h: 0.42,
+          y: 4.05 + idx * 0.54, // Adjusted starting Y and increment for better alignment
+          w: 0.4,
+          h: 0.4,
         });
       }
     });
