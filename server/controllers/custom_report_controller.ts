@@ -123,7 +123,8 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
   let colorChoice = req.body.colorChoice || 'blue';
   const formattedReportName = reportName.replace('/', '-');
   let slides: Slide[] = req.body.slides;
-  slides = splitSlidesWithLargeTables(slides);
+  // Process data to see if we need to split slides (e.g. max tables rows, or max chart points)
+  slides = splitSlidesWithLargeData(slides);
 
   // No need for physical filename/path logic anymore, returning as Buffer
   // let randomString = (Math.random() + 1).toString(36).substring(7);
@@ -554,63 +555,155 @@ async function generateSlide(
   }
 }
 
-function splitSlidesWithLargeTables(slides: Slide[]): Slide[] {
+function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
   let newSlides: Slide[] = [];
 
-  slides.forEach((slide) => {
-    // Check if Top Summary exists
-    const isTopSummary = slide.summary && slide.summary.enabled && slide.summary.position === 'top';
-    const isLeftSummary = slide.summary && slide.summary.enabled && slide.summary.position === 'left';
+  const MAX_ROWS = 10;          // Max table rows per slide
+  const MAX_DAYS_HOURLY = 10;   // Max days per hourly chart slide
 
-    let MAX_ROWS = 10;
-    if (isTopSummary) MAX_ROWS = 100; // Truncate in handler
-    if (isLeftSummary) MAX_ROWS = 10; // Truncate in handler (limit to 10)
+  slides.forEach((slide) => {
+    const isTopSummary = slide.summary && slide.summary.enabled && slide.summary.position === 'top';
+    if (isTopSummary) {
+      newSlides.push(slide);
+      return;
+    }
 
     let needsSplit = false;
-    let maxRows = 0;
+    let splitType = '';           // 'table' | 'hourly' | 'chart'
+    let maxSplits = 0;
 
-    // Check if any content needs splitting
+    // ---- SCAN: detect if anything needs splitting ----
     if (slide.contents && slide.contents.length > 0) {
-      slide.contents.forEach((content) => {
-        if (content.data) {
-          content.data.forEach((d) => {
-            // Check if visualization is table and has body
-            if (d.visualization === 'table' && d.details?.table?.body?.length > MAX_ROWS) {
+      slide.contents.forEach((content: any) => {
+        if (!content.data) return;
+        content.data.forEach((d: any) => {
+
+          // --- TABLE ---
+          if (d.visualization === 'table' && d.details?.table?.body?.length > MAX_ROWS) {
+            needsSplit = true;
+            splitType = 'table';
+            maxSplits = Math.max(maxSplits, Math.ceil(d.details.table.body.length / MAX_ROWS));
+          }
+
+          // --- HOURLY LINE: split by unique calendar days ---
+          if (d.visualization === 'hourly_line' && d.details?.series?.length > 0) {
+            const firstSeries = d.details.series[0];
+            if (!firstSeries?.data?.length) return;
+
+            // Collect unique date strings from timestamps
+            const uniqueDays: string[] = [];
+            firstSeries.data.forEach((pt: any) => {
+              const ts = pt.timestamp || '';
+              const date = new Date(ts);
+              if (!isNaN(date.getTime())) {
+                // Use UTC date string as unique key (YYYY-MM-DD)
+                const dayKey = date.toISOString().slice(0, 10);
+                if (!uniqueDays.includes(dayKey)) uniqueDays.push(dayKey);
+              }
+            });
+
+            if (uniqueDays.length > MAX_DAYS_HOURLY) {
               needsSplit = true;
-              maxRows = Math.max(maxRows, d.details.table.body.length);
+              splitType = 'hourly';
+              maxSplits = Math.max(maxSplits, Math.ceil(uniqueDays.length / MAX_DAYS_HOURLY));
             }
-          });
-        }
+          }
+
+          // --- OTHER LINE CHARTS: split by raw data point count ---
+          if ((d.visualization === 'trend_line' || d.visualization === 'line_chart') && d.details?.series?.length > 0) {
+            const dataLen = d.details.series[0].data?.length || 0;
+            if (dataLen > MAX_ROWS) {
+              needsSplit = true;
+              splitType = 'chart';
+              maxSplits = Math.max(maxSplits, Math.ceil(dataLen / MAX_ROWS));
+            }
+          }
+
+        });
       });
     }
 
+    // ---- NO SPLIT NEEDED ----
     if (!needsSplit) {
       newSlides.push(slide);
-    } else {
-      // Perform Split
-      let chunksCount = Math.ceil(maxRows / MAX_ROWS);
-      for (let i = 0; i < chunksCount; i++) {
-        // Deep copy slide to avoid ref issues
-        let slideClone = JSON.parse(JSON.stringify(slide));
+      return;
+    }
 
-        // Update contents for this chunk
-        slideClone.contents.forEach((content: Content) => {
-          if (content.data) {
-            content.data.forEach((d) => {
-              if (d.visualization === 'table' && d.details?.table?.body) {
-                let start = i * MAX_ROWS;
-                let end = start + MAX_ROWS;
-                // Slice the body
-                let originalBody = d.details.table.body;
-                let slicedBody = originalBody.slice(start, end);
-                d.details.table.body = slicedBody;
+    // ---- PERFORM SPLIT ----
+
+    // For hourly charts: pre-compute the day ranges so each clone knows which days to keep
+    let dayChunks: string[][] = [];
+    if (splitType === 'hourly') {
+      // Collect all unique days from the first series
+      const allDays: string[] = [];
+      slide.contents.forEach((content: any) => {
+        if (!content.data) return;
+        content.data.forEach((d: any) => {
+          if (d.visualization === 'hourly_line' && d.details?.series?.[0]?.data) {
+            d.details.series[0].data.forEach((pt: any) => {
+              const ts = pt.timestamp || '';
+              const date = new Date(ts);
+              if (!isNaN(date.getTime())) {
+                const dayKey = date.toISOString().slice(0, 10);
+                if (!allDays.includes(dayKey)) allDays.push(dayKey);
               }
             });
           }
         });
-        newSlides.push(slideClone);
+      });
+      // Chunk the day list into groups of MAX_DAYS_HOURLY
+      for (let i = 0; i < allDays.length; i += MAX_DAYS_HOURLY) {
+        dayChunks.push(allDays.slice(i, i + MAX_DAYS_HOURLY));
       }
+      maxSplits = dayChunks.length;
     }
+
+    for (let i = 0; i < maxSplits; i++) {
+      const slideClone = JSON.parse(JSON.stringify(slide));
+
+      slideClone.contents.forEach((content: any) => {
+        if (!content.data) return;
+        content.data.forEach((d: any) => {
+
+          // TABLE split
+          if (splitType === 'table' && d.visualization === 'table' && d.details?.table?.body) {
+            const start = i * MAX_ROWS;
+            const end = start + MAX_ROWS;
+            d.details.table.body = d.details.table.body.slice(start, end);
+          }
+
+          // HOURLY split — keep only data points whose date is within the day chunk
+          if (splitType === 'hourly' && d.visualization === 'hourly_line' && d.details?.series) {
+            const allowedDays = new Set(dayChunks[i]);
+            d.details.series.forEach((s: any) => {
+              if (s.data) {
+                s.data = s.data.filter((pt: any) => {
+                  const ts = pt.timestamp || '';
+                  const date = new Date(ts);
+                  if (!isNaN(date.getTime())) {
+                    return allowedDays.has(date.toISOString().slice(0, 10));
+                  }
+                  return false;
+                });
+              }
+            });
+          }
+
+          // OTHER CHART split (raw index-based)
+          if (splitType === 'chart' && (d.visualization === 'trend_line' || d.visualization === 'line_chart') && d.details?.series) {
+            const start = i * MAX_ROWS;
+            const end = start + MAX_ROWS;
+            d.details.series.forEach((s: any) => {
+              if (s.data) s.data = s.data.slice(start, end);
+            });
+          }
+
+        });
+      });
+
+      newSlides.push(slideClone);
+    }
+
   });
   return newSlides;
 }

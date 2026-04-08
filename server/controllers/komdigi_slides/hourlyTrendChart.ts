@@ -20,49 +20,86 @@ export default function buildHourlyTrendChart(pptx: any, contents: any, titleSli
 
   // --- CHART SECTION (Wide) ---
   if (hrData.series) {
+    const firstSeries = hrData.series[0];
+    const totalPoints = firstSeries?.data?.length || 0;
+
+    // Chart dimensions
+    const chartX = 0.6;
+    const chartY = 2.1;
+    const chartW = 12.13;
+    const chartH = 3.5; // Slightly smaller to leave room for date row below
+
+    // Build chart labels — only show time every 3 hours, skip 00:00 (date label will appear there manually)
     const chartData = hrData.series.map((s: any) => ({
       name: s.name,
       labels: s.data.map((d: any) => {
         const ts = d.timestamp || '';
         const date = new Date(ts);
-        
-        // Always calculate hour for the filter
-        let hour = -1;
-        if (!isNaN(date.getTime())) {
-          hour = date.getHours();
-        } else if (ts.includes(':')) {
-          hour = parseInt(ts.split(':')[0]);
-        }
+        if (isNaN(date.getTime())) return '';
 
-        // Only show label for multiples of 3 (0, 3, 6, 9, 12, 15, 18, 21)
-        if (hour !== -1 && hour % 3 === 0) {
-          const hourStr = hour.toString().padStart(2, '0') + ':00';
-          return hourStr;
+        const hour = date.getUTCHours();
+
+        // Show time every 3 hours except midnight (00:00 position is for date label below)
+        if (hour !== 0 && hour % 3 === 0) {
+          return hour.toString().padStart(2, '0') + ':00';
         }
-        
-        return ''; // Empty label for non-3h intervals to keep space
+        return '';
       }),
       values: s.data.map((d: any) => d.value),
     }));
 
     hrSlide.addChart(pptx.charts.LINE, chartData, {
-      x: 0.6,
-      y: 2.1,
-      w: 12.13,
-      h: 3.8,
-      chartColors: ['00BAEC'], // Single Blue for Talk
-      lineDataSymbol: 'none', // Too many points for symbols
-      showValue: false, // Too many points for values
+      x: chartX,
+      y: chartY,
+      w: chartW,
+      h: chartH,
+      chartColors: ['00BAEC'],
+      lineDataSymbol: 'none',
+      showValue: false,
       valAxisHidden: false,
       valAxisLineShow: true,
       valGridLine: { style: 'none' },
       catAxisLineShow: true,
-      catAxisLabelFontSize: 8,
+      catAxisLabelFontSize: 7,
       catAxisLabelRotate: 0,
       catAxisCrossingPos: 'autoZero',
       valAxisCrossingPos: 'autoZero',
       showLegend: false,
     });
+
+    // --- MANUAL DATE LABEL ROW (drawn below the axis, one label per day start) ---
+    if (totalPoints > 0) {
+      const dateRowY = chartY + chartH + 0.04; // Tight below the axis tick labels
+
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+      firstSeries.data.forEach((d: any, idx: number) => {
+        const ts = d.timestamp || '';
+        const date = new Date(ts);
+        if (isNaN(date.getTime())) return;
+        if (date.getUTCHours() !== 0) return; // Only at start of each day
+
+        const day = date.getUTCDate();
+        const mon = months[date.getUTCMonth()];
+        const label = `${day}-${mon}`;
+
+        // x position: proportional along chart width
+        const fraction = totalPoints > 1 ? idx / (totalPoints - 1) : 0;
+        const labelX = chartX + fraction * chartW - 0.22;
+
+        hrSlide.addText(label, {
+          x: labelX,
+          y: dateRowY,
+          w: 0.55,
+          h: 0.22,
+          fontSize: 7,
+          bold: true,
+          color: '444444',
+          align: 'center',
+          fontFace: 'Arial',
+        });
+      });
+    }
   }
 
   // --- SUMMARY SECTION (Bottom) ---
@@ -73,7 +110,7 @@ export default function buildHourlyTrendChart(pptx: any, contents: any, titleSli
     }));
     hrSlide.addText(bulletPoints, {
       x: 0.6,
-      y: 6.1,
+      y: 6.25,
       w: 12.13,
       h: 1.0,
       valign: 'top',
