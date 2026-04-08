@@ -85,8 +85,9 @@ export default function buildSentimentMediaOnline(pptx: any, contents: any, titl
       const rawText = data.chartData.totalLabel.replace(/\n/g, ': ').replace(/\s+/g, ' ').trim();
       sentOnlineSlide.addText(rawText, {
         // Center of chart is 3.66 + 3.0 = 6.66. Width is 3.0, x = 6.66 - 1.5 = 5.16
+        // Y: chart y=3.8, h=3.2, legend ~0.5in → donut center ≈ 3.8 + (3.2-0.5)/2 = 5.15
         x: 5.16,
-        y: 5.25,
+        y: 5.0, // Moved up from 5.25 to align with donut hole center
         w: 3.0,
         h: 0.4,
         fontSize: 10,

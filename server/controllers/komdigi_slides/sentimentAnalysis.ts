@@ -1,11 +1,7 @@
 export default function buildSentimentAnalysis(pptx: any, contents: any, titleSlide: string) {
-  // ======================================================
-  // SENTIMENT ANALYSIS SLIDE — Doughnut + Stacked Bar (REFINED)
-  // ======================================================
   const sentSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
   const sentData = contents?.data?.[0]?.details || {};
 
-  // Judul Utama
   sentSlide.addText(titleSlide || 'ANALISIS SENTIMEN', {
     x: 2.5,
     y: 1.45,
@@ -18,7 +14,6 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     fontFace: 'Arial',
   });
 
-  // Ringkasan Teks
   if (sentData.summary) {
     sentSlide.addText(sentData.summary, {
       x: 0.6,
@@ -33,7 +28,6 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     });
   }
 
-  // --- DOUGHNUT CHART (LEFT) ---
   sentSlide.addText('Media Sosial', {
     x: 1.1,
     y: 3.4,
@@ -55,9 +49,9 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     ];
     const doughnutColors = sentData.overall.data.map((d: any) => {
       const name = d.name.toLowerCase();
-      if (name.includes('pos')) return '00B050'; // Green
-      if (name.includes('neg')) return 'FF0000'; // Red
-      return '00BAEC'; // Neutral Blue
+      if (name.includes('pos')) return '00B050';
+      if (name.includes('neg')) return 'FF0000';
+      return '00BAEC';
     });
 
     sentSlide.addChart(pptx.charts.DOUGHNUT, doughnutData, {
@@ -77,12 +71,11 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
       legendFontSize: 9,
     });
 
-    // Overlay Total Text in Middle (Single Line, Size 7)
     if (sentData.overall.totalLabel) {
       const rawText = sentData.overall.totalLabel.replace(/\n/g, ': ').replace(/\s+/g, ' ').trim();
       sentSlide.addText(rawText, {
         x: 2.1,
-        y: 5.15,
+        y: 4.85,
         w: 3.0,
         h: 0.4,
         fontSize: 10,
@@ -95,7 +88,6 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     }
   }
 
-  // --- STACKED BAR CHART (RIGHT) ---
   sentSlide.addText('Sentimen %', {
     x: 6.7,
     y: 3.4,
@@ -126,20 +118,19 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
       h: 3.2,
       barDir: 'bar',
       barGrouping: 'stacked',
-      barGap: 30, // Thicker bars
+      barGap: 30,
       chartColors: ['00B050', 'FF0000', 'A6A6A6'],
       showValue: true,
       dataLabelColor: 'FFFFFF',
       dataLabelFontSize: 9,
       dataLabelFontBold: true,
       valAxisHidden: true,
-      catAxisHidden: true, // Hide axis to align icons perfectly
+      catAxisHidden: true,
       showLegend: true,
       legendPos: 't',
       legendFontSize: 9,
     });
 
-    // Add Platform Icons (Finetuned alignment)
     const iconPaths: any = {
       facebook: 'https://cdn-icons-png.flaticon.com/512/124/124010.png',
       twitter: 'https://cdn-icons-png.flaticon.com/512/733/733579.png',
@@ -149,17 +140,21 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     };
 
     const totalPlatforms = sentData.platforms.length;
-    const segmentH = 3.2 / totalPlatforms;
+    const chartBarY    = 3.8;
+    const chartBarH    = 3.2;
+    const legendHeight = 0.45;
+    const plotTop      = chartBarY + legendHeight;
+    const plotH        = chartBarH - legendHeight;
+    const segmentH     = plotH / totalPlatforms;
 
     sentData.platforms.forEach((p: any, idx: number) => {
       const iconUrl = iconPaths[p.name.toLowerCase()] || '';
       if (iconUrl) {
-        // pptxgen bar chart draws from bottom (idx 0) to top.
-        const yCenter = 3.8 + 3.2 - ((idx + 0.5) * segmentH);
+        const yCenter = plotTop + (idx + 0.5) * segmentH;
         sentSlide.addImage({
           path: iconUrl,
           x: 6.7,
-          y: yCenter - 0.2, // w and h are 0.4, so offset by 0.2 to center
+          y: yCenter - 0.2,
           w: 0.4,
           h: 0.4,
         });
@@ -167,7 +162,6 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
     });
   }
 
-  // Footer Note
   if (sentData.footerNote) {
     sentSlide.addText(sentData.footerNote, {
       x: 0,

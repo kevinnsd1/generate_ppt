@@ -1,11 +1,7 @@
 export default function buildSocialMediaDetail(pptx: any, contents: any, titleSlide: string) {
-  // ======================================================
-  // SOCIAL MEDIA DETAIL SLIDE — Pie Chart + Summary
-  // ======================================================
   const smSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
   const smData = contents?.data?.[0]?.details || {};
 
-  // Judul Utama (Centered)
   smSlide.addText(titleSlide || 'RINCIAN MEDIA SOSIAL', {
     x: 2.5,
     y: 1.45,
@@ -18,89 +14,89 @@ export default function buildSocialMediaDetail(pptx: any, contents: any, titleSl
     fontFace: 'Arial',
   });
 
-  // --- SUMMARY TEXT (Top) ---
   if (smData.summary) {
     smSlide.addText(smData.summary, {
-      x: 1.25,
+      x: 0.6,
       y: 2.1,
-      w: 10.5,
-      h: 1.0,
-      fontSize: 14,
+      w: 12.13,
+      h: 0.65,
+      fontSize: 13,
       color: '1A1A1A',
-      align: 'center',
+      align: 'left',
       valign: 'top',
       fontFace: 'Arial',
-      lineSpacingMultiple: 1.1,
+      lineSpacingMultiple: 1.15,
     });
   }
 
-  // --- PIE CHART SECTION ---
   if (smData.chartData) {
-    // Standard Platform Colors
     const colorMap: any = {
-      instagram: '833AB4', // Purple
-      twitter: '1DA1F2', // Light Blue
-      tiktok: '000000', // Black
-      youtube: 'FF0000', // Red
-      facebook: '1877F2', // Blue
+      instagram: '833AB4',
+      twitter:   '1DA1F2',
+      tiktok:    '000000',
+      youtube:   'FF0000',
+      facebook:  '1877F2',
     };
 
     const chartData = [
       {
         name: 'Platform Distribution',
-        labels: smData.chartData.map((c: any) => {
-          // Capitalize first letter for legend
-          return c.name.charAt(0).toUpperCase() + c.name.slice(1);
-        }),
+        labels: smData.chartData.map((c: any) =>
+          c.name.charAt(0).toUpperCase() + c.name.slice(1)
+        ),
         values: smData.chartData.map((c: any) => c.value),
       },
     ];
 
-    const chartColors = smData.chartData.map((c: any) => colorMap[c.name.toLowerCase()] || 'CCCCCC');
+    const chartColors = smData.chartData.map(
+      (c: any) => colorMap[c.name.toLowerCase()] || 'CCCCCC'
+    );
 
-    smSlide.addChart(pptx.charts.DOUGHNUT, chartData, {
-      x: 3.66,
-      y: 3.1,
-      w: 6.0,
-      h: 3.0, // Reduced height to avoid footer
-      holeSize: 50,
+    const chartX = (13.33 - 6.53) / 2;
+    const chartY = 2.85;
+    const chartW = 6.53;
+    const chartH = 3.8;
+
+    smSlide.addChart(pptx.charts.PIE, chartData, {
+      x: chartX,
+      y: chartY,
+      w: chartW,
+      h: chartH,
       chartColors: chartColors,
-      showValue: true,
+      showValue: false,
       showPercent: true,
       dataLabelColor: 'FFFFFF',
-      dataLabelFontSize: 10,
+      dataLabelFontSize: 11,
       dataLabelFontBold: true,
-      dataLabelPosition: 'outEnd',
+      dataLabelPosition: 'bestFit',
       showLegend: true,
       legendPos: 'r',
-      legendFontSize: 11,
+      legendFontSize: 12,
     });
+
+    if (smData.totalLabel) {
+      const rawText = smData.totalLabel.replace(/\s+/g, ' ').trim();
+      smSlide.addText(rawText, {
+        x: chartX,
+        y: chartY + chartH + 0.05,
+        w: chartW,
+        h: 0.42,
+        fontSize: 16,
+        bold: true,
+        color: '1A1A1A',
+        align: 'center',
+        valign: 'middle',
+        fontFace: 'Arial',
+      });
+    }
   }
 
-  // --- TOTAL LABEL (Inside Donut Hole) ---
-  if (smData.totalLabel) {
-    const rawText = smData.totalLabel.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    smSlide.addText(rawText, {
-      x: 5.16,
-      y: 4.4,
-      w: 3.0,
-      h: 0.4,
-      fontSize: 10,
-      bold: true,
-      color: '1A1A1A',
-      align: 'center',
-      valign: 'middle',
-      fontFace: 'Arial',
-    });
-  }
-
-  // Footer Note (Exactly Centered with smaller gap)
   if (smData.footerNote) {
     smSlide.addText(smData.footerNote, {
       x: 0,
-      y: 6.75,
+      y: 7.0,
       w: 13.33,
-      h: 0.3, // Full width to ensure perfect centering
+      h: 0.3,
       fontSize: 9,
       color: '888888',
       align: 'center',

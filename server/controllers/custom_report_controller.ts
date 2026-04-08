@@ -211,7 +211,7 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
           });
         } else if (visualization == 'wordcloud') {
           const wcData = el.details || {};
-          
+
           // Helper function to generate white background image and return path
           const fetchAndRenderWordcloud = async (sideData: any, side: string) => {
             if (!sideData) return { success: false };
@@ -220,11 +220,11 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
             let dataArr = sideData.nameValue || sideData.data;
             if (Array.isArray(dataArr) && dataArr.length > 0) {
               try {
-                const b64 = await generateWordcloudImage({ 
-                   browser, 
-                   pathDir: "", 
-                   data: dataArr, 
-                   id: `komdigi_${side}_${Date.now()}` 
+                const b64 = await generateWordcloudImage({
+                  browser,
+                  pathDir: '',
+                  data: dataArr,
+                  id: `komdigi_${side}_${Date.now()}`,
                 });
                 return { success: !!b64, base64: b64, side };
               } catch (e) {
@@ -240,13 +240,16 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
             try {
               const wcPage = await browser.newPage();
               await wcPage.setViewport({ width: 800, height: 400 });
-              
-              await wcPage.setContent(`
+
+              await wcPage.setContent(
+                `
                 <body style="margin:0;background:white;display:flex;align-items:center;justify-content:center;min-height:100vh;">
                   <img style="max-width:100%;max-height:100%;object-fit:contain;" src="${imageSrc}" />
                 </body>
-              `, { waitUntil: 'networkidle0' });
-              
+              `,
+                { waitUntil: 'networkidle0' },
+              );
+
               const b64 = await wcPage.screenshot({ omitBackground: false, encoding: 'base64' });
               await wcPage.close();
               return { success: !!b64, base64: b64, side };
@@ -483,17 +486,47 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
       }
     }
   }
-  // Only add default thanks slide if a custom closing slide wasn't provided
-  const hasCustomClosing = slides.some(s => s.slideType === 'closing' || s.id === 'closing');
-  if (!hasCustomClosing) {
-    pptx.addSlide('THANKS_SLIDE');
+  // Always append TERIMA KASIH closing slide at the end of every report
+  try {
+    const closingSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
+
+    // Large light blue background box — fills most of the slide (below header area)
+    closingSlide.addShape(pptx.shapes.RECTANGLE, {
+      x: 0.6, y: 1.85, w: 12.13, h: 5.2,
+      fill: 'E0F7FA',
+      line: { type: 'none' },
+    });
+
+    // Darker blue accent box on top-right corner of the blue box
+    closingSlide.addShape(pptx.shapes.RECTANGLE, {
+      x: 10.7, y: 1.85, w: 2.03, h: 0.7,
+      fill: 'B2EBF2',
+      line: { type: 'none' },
+    });
+
+    // TERIMA KASIH text — vertically centered in the blue box
+    closingSlide.addText('TERIMA KASIH', {
+      x: 1.0, y: 3.6, w: 9.0, h: 1.5,
+      fontSize: 48,
+      bold: true,
+      color: '1A1A1A',
+      fontFace: 'Arial',
+      valign: 'middle',
+      align: 'left',
+    });
+
+    console.log('[Generate PPT] TERIMA KASIH closing slide added.');
+  } catch (closingErr) {
+    console.error('[Generate PPT] Failed to add closing slide:', closingErr);
   }
 
-  const buffer = await pptx.write('nodebuffer') as Buffer;
-  
+
+
+  const buffer = (await pptx.write('nodebuffer')) as Buffer;
+
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
   res.setHeader('Content-Disposition', `attachment; filename="${formattedReportName}.pptx"`);
-  
+
   browser.close();
   res.send(buffer);
 
@@ -558,8 +591,8 @@ async function generateSlide(
 function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
   let newSlides: Slide[] = [];
 
-  const MAX_ROWS = 10;          // Max table rows per slide
-  const MAX_DAYS_HOURLY = 10;   // Max days per hourly chart slide
+  const MAX_ROWS = 10; // Max table rows per slide
+  const MAX_DAYS_HOURLY = 10; // Max days per hourly chart slide
 
   slides.forEach((slide) => {
     const isTopSummary = slide.summary && slide.summary.enabled && slide.summary.position === 'top';
@@ -569,7 +602,7 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
     }
 
     let needsSplit = false;
-    let splitType = '';           // 'table' | 'hourly' | 'chart'
+    let splitType = ''; // 'table' | 'hourly' | 'chart'
     let maxSplits = 0;
 
     // ---- SCAN: detect if anything needs splitting ----
@@ -577,7 +610,6 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
       slide.contents.forEach((content: any) => {
         if (!content.data) return;
         content.data.forEach((d: any) => {
-
           // --- TABLE ---
           if (d.visualization === 'table' && d.details?.table?.body?.length > MAX_ROWS) {
             needsSplit = true;
@@ -618,7 +650,6 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
               maxSplits = Math.max(maxSplits, Math.ceil(dataLen / MAX_ROWS));
             }
           }
-
         });
       });
     }
@@ -664,7 +695,6 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
       slideClone.contents.forEach((content: any) => {
         if (!content.data) return;
         content.data.forEach((d: any) => {
-
           // TABLE split
           if (splitType === 'table' && d.visualization === 'table' && d.details?.table?.body) {
             const start = i * MAX_ROWS;
@@ -690,20 +720,22 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
           }
 
           // OTHER CHART split (raw index-based)
-          if (splitType === 'chart' && (d.visualization === 'trend_line' || d.visualization === 'line_chart') && d.details?.series) {
+          if (
+            splitType === 'chart' &&
+            (d.visualization === 'trend_line' || d.visualization === 'line_chart') &&
+            d.details?.series
+          ) {
             const start = i * MAX_ROWS;
             const end = start + MAX_ROWS;
             d.details.series.forEach((s: any) => {
               if (s.data) s.data = s.data.slice(start, end);
             });
           }
-
         });
       });
 
       newSlides.push(slideClone);
     }
-
   });
   return newSlides;
 }
