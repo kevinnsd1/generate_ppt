@@ -219,16 +219,13 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
             let dataArr = sideData.nameValue || sideData.data;
             if (Array.isArray(dataArr) && dataArr.length > 0) {
               try {
-                // generateWordcloudImage expects a trailing slash
-                const pathWithSlash = tempDir.endsWith(pathExpress.sep) ? tempDir : tempDir + pathExpress.sep;
-                const imageName = await generateWordcloudImage({ 
+                const b64 = await generateWordcloudImage({ 
                    browser, 
-                   pathDir: pathWithSlash, 
+                   pathDir: "", 
                    data: dataArr, 
                    id: `komdigi_${side}_${Date.now()}` 
                 });
-                const fullPath = pathExpress.join(tempDir, imageName);
-                return { success: true, path: fullPath, side };
+                return { success: !!b64, base64: b64, side };
               } catch (e) {
                 console.error(`Native wordcloud generation failed for ${side}`, e);
                 // Fallback to image property if native fails
@@ -239,9 +236,7 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
             const imageSrc = sideData.image;
             if (!imageSrc) return { success: false };
 
-            const tempPath = pathExpress.join(tempDir, `wc_${side}_${Date.now()}_${Math.random().toString(36).substring(7)}.png`);
             try {
-              const page = await Math.random(); // Dummy var, we'll use the existing browser instance
               const wcPage = await browser.newPage();
               await wcPage.setViewport({ width: 800, height: 400 });
               
@@ -251,9 +246,9 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
                 </body>
               `, { waitUntil: 'networkidle0' });
               
-              await wcPage.screenshot({ path: tempPath, omitBackground: false });
+              const b64 = await wcPage.screenshot({ omitBackground: false, encoding: 'base64' });
               await wcPage.close();
-              return { success: true, path: tempPath, side };
+              return { success: !!b64, base64: b64, side };
             } catch (e) {
               console.error(`Puppeteer screenshot failed for wordcloud ${side}`, e);
               return { success: false };
@@ -298,26 +293,17 @@ export const generatePpt = asyncHandler(async (req: any, res: any, next: any) =>
             });
           } else if (visualization == 'wordcloud') {
             const wcData = el.details || {};
-            // Assign paths from our newly fetched Puppeteer screenshots
             if (wcData.left) {
               const result = (allResponse[resIdx] as PromiseFulfilledResult<any>)?.value;
               if (result && result.success && result.side === 'left') {
-                tempFiles.push(result.path);
-                try {
-                  const b64 = require('fs').readFileSync(result.path).toString('base64');
-                  slides[i].contents[0].data[idx1].details.left.image = 'data:image/png;base64,' + b64;
-                } catch(e) { console.error('Error reading wordcloud left img', e); }
+                slides[i].contents[0].data[idx1].details.left.image = 'data:image/png;base64,' + result.base64;
               }
               resIdx++;
             }
             if (wcData.right) {
               const result = (allResponse[resIdx] as PromiseFulfilledResult<any>)?.value;
               if (result && result.success && result.side === 'right') {
-                tempFiles.push(result.path);
-                try {
-                  const b64 = require('fs').readFileSync(result.path).toString('base64');
-                  slides[i].contents[0].data[idx1].details.right.image = 'data:image/png;base64,' + b64;
-                } catch(e) { console.error('Error reading wordcloud right img', e); }
+                slides[i].contents[0].data[idx1].details.right.image = 'data:image/png;base64,' + result.base64;
               }
               resIdx++;
             }

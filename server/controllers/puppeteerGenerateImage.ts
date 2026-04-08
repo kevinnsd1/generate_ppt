@@ -126,18 +126,18 @@ export const generateSampleTalkImage = async ({ browser, pathDir, data }: BaseIm
   return imageName;
 };
 
-export const generateWordcloudImage = async ({ browser, pathDir, id, data }: BaseImageParams) => {
-  const imageName = `wordcloud-${Date.now()}.png`;
+export const generateWordcloudImage = async ({ browser, id, data }: BaseImageParams) => {
   const page = await browser.newPage();
 
   await page.setContent(templateWordcloud.getHtml(data));
   await page.waitForSelector('svg');
 
   const element = await page.$('svg'); // get element
+  let base64Str = '';
   if (element) {
-    await element.screenshot({ type: 'png', path: `${pathDir}${imageName}` });
+    base64Str = await element.screenshot({ type: 'png', encoding: 'base64' }) as string;
   }
 
   await page.close();
-  return imageName;
+  return base64Str;
 };

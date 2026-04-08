@@ -5,6 +5,11 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
   const wcSlide = pptx.addSlide({ masterName: 'KOMDIGI_CONTENT' });
   const wcData = contents?.data?.[0]?.details || {};
 
+  console.log('--- DEBUG WORDCLOUD KOMDIGI ---');
+  console.log('wcData.left.imagePath:', wcData?.left?.imagePath);
+  console.log('wcData.right.imagePath:', wcData?.right?.imagePath);
+
+
   // Judul Utama
   wcSlide.addText(titleSlide || 'WORDCLOUD', {
     x: 2.5,
@@ -47,7 +52,7 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         fontFace: 'Arial',
       });
     }
-    if (wcData.left.image) {
+    if (wcData.left.image || wcData.left.imagePath || wcData.left.data || wcData.left.nameValue) {
       let addImageReq: any = {
         x: 0.6,
         y: 4.7,
@@ -55,10 +60,18 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         h: 2.2,
         sizing: { type: 'contain', w: 5.8, h: 2.2 },
       };
+      
       let imgStr = wcData.left.image;
-      if (imgStr.startsWith('http')) {
+      let imgPath = wcData.left.imagePath;
+
+      console.log('DEBUG LEFT WORDCLOUD:', { imgStr: imgStr ? 'exists' : 'no', imgPath, data: !!wcData.left.data });
+
+
+      if (imgPath) {
+        addImageReq.path = imgPath;
+      } else if (imgStr && imgStr.startsWith('http')) {
         addImageReq.path = imgStr;
-      } else {
+      } else if (imgStr) {
         // Pastikan format data:image/...;base64, lengkap
         if (!imgStr.startsWith('data:')) {
           if (imgStr.startsWith('image/')) {
@@ -69,7 +82,10 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         }
         addImageReq.data = imgStr;
       }
-      wcSlide.addImage(addImageReq);
+
+      if (addImageReq.path || addImageReq.data) {
+        wcSlide.addImage(addImageReq);
+      }
     }
   }
 
@@ -102,7 +118,7 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         fontFace: 'Arial',
       });
     }
-    if (wcData.right.image) {
+    if (wcData.right.image || wcData.right.imagePath || wcData.right.data || wcData.right.nameValue) {
       let addImageReq: any = {
         x: 6.9,
         y: 4.7,
@@ -110,10 +126,15 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         h: 2.2,
         sizing: { type: 'contain', w: 5.8, h: 2.2 },
       };
+      
       let imgStr = wcData.right.image;
-      if (imgStr.startsWith('http')) {
+      let imgPath = wcData.right.imagePath;
+
+      if (imgPath) {
+        addImageReq.path = imgPath;
+      } else if (imgStr && imgStr.startsWith('http')) {
         addImageReq.path = imgStr;
-      } else {
+      } else if (imgStr) {
         // Pastikan format data:image/...;base64, lengkap
         if (!imgStr.startsWith('data:')) {
           if (imgStr.startsWith('image/')) {
@@ -124,7 +145,10 @@ export default function buildWordcloud(pptx: any, contents: any, titleSlide: str
         }
         addImageReq.data = imgStr;
       }
-      wcSlide.addImage(addImageReq);
+
+      if (addImageReq.path || addImageReq.data) {
+        wcSlide.addImage(addImageReq);
+      }
     }
   }
 

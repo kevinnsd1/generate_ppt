@@ -58,36 +58,38 @@ export default function buildSocialMediaDetail(pptx: any, contents: any, titleSl
 
     const chartColors = smData.chartData.map((c: any) => colorMap[c.name.toLowerCase()] || 'CCCCCC');
 
-    smSlide.addChart(pptx.charts.PIE, chartData, {
-      x: 3.8,
+    smSlide.addChart(pptx.charts.DOUGHNUT, chartData, {
+      x: 3.66,
       y: 3.1,
       w: 6.0,
       h: 3.0, // Reduced height to avoid footer
+      holeSize: 50,
       chartColors: chartColors,
       showValue: true,
       showPercent: true,
       dataLabelColor: 'FFFFFF',
       dataLabelFontSize: 10,
       dataLabelFontBold: true,
-      dataLabelPosition: 'bestFit',
+      dataLabelPosition: 'outEnd',
       showLegend: true,
       legendPos: 'r',
       legendFontSize: 11,
     });
   }
 
-  // --- TOTAL LABEL (Exactly Centered under pie chart) ---
+  // --- TOTAL LABEL (Inside Donut Hole) ---
   if (smData.totalLabel) {
     const rawText = smData.totalLabel.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     smSlide.addText(rawText, {
-      x: 0,
-      y: 6.25,
-      w: 13.33,
+      x: 5.16,
+      y: 4.4,
+      w: 3.0,
       h: 0.4,
-      fontSize: 7,
+      fontSize: 10,
       bold: true,
       color: '1A1A1A',
       align: 'center',
+      valign: 'middle',
       fontFace: 'Arial',
     });
   }

@@ -71,6 +71,7 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
       showPercent: true,
       dataLabelColor: 'FFFFFF',
       dataLabelFontSize: 11,
+      dataLabelPosition: 'outEnd',
       showLegend: true,
       legendPos: 'b',
       legendFontSize: 9,
@@ -84,7 +85,7 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
         y: 5.15,
         w: 3.0,
         h: 0.4,
-        fontSize: 7,
+        fontSize: 10,
         bold: true,
         color: '1A1A1A',
         align: 'center',
@@ -147,13 +148,18 @@ export default function buildSentimentAnalysis(pptx: any, contents: any, titleSl
       instagram: 'https://cdn-icons-png.flaticon.com/512/174/174855.png',
     };
 
+    const totalPlatforms = sentData.platforms.length;
+    const segmentH = 3.2 / totalPlatforms;
+
     sentData.platforms.forEach((p: any, idx: number) => {
       const iconUrl = iconPaths[p.name.toLowerCase()] || '';
       if (iconUrl) {
+        // pptxgen bar chart draws from bottom (idx 0) to top.
+        const yCenter = 3.8 + 3.2 - ((idx + 0.5) * segmentH);
         sentSlide.addImage({
           path: iconUrl,
           x: 6.7,
-          y: 4.05 + idx * 0.54, // Adjusted starting Y and increment for better alignment
+          y: yCenter - 0.2, // w and h are 0.4, so offset by 0.2 to center
           w: 0.4,
           h: 0.4,
         });
