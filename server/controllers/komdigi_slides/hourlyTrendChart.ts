@@ -34,6 +34,15 @@ export default function buildHourlyTrendChart(pptx: any, contents: any, titleSli
       name: s.name,
       labels: s.data.map((d: any) => {
         const ts = d.timestamp || '';
+        const match = ts.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (match) {
+          const hour = parseInt(match[4], 10);
+          if (hour !== 0 && hour % 3 === 0) {
+            return hour.toString().padStart(2, '0') + ':00';
+          }
+          return '';
+        }
+
         const date = new Date(ts);
         if (isNaN(date.getTime())) return '';
 
@@ -75,13 +84,26 @@ export default function buildHourlyTrendChart(pptx: any, contents: any, titleSli
 
       firstSeries.data.forEach((d: any, idx: number) => {
         const ts = d.timestamp || '';
-        const date = new Date(ts);
-        if (isNaN(date.getTime())) return;
-        if (date.getUTCHours() !== 0) return; // Only at start of each day
-
-        const day = date.getUTCDate();
-        const mon = months[date.getUTCMonth()];
-        const label = `${day}-${mon}`;
+        const match = ts.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        
+        let label = '';
+        if (match) {
+          const hour = parseInt(match[4], 10);
+          if (hour !== 0) return; // Only at start of each day
+          
+          const day = parseInt(match[3], 10);
+          const monIndex = parseInt(match[2], 10) - 1;
+          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          label = `${day}-${months[monIndex]}`;
+        } else {
+          const date = new Date(ts);
+          if (isNaN(date.getTime())) return;
+          if (date.getUTCHours() !== 0) return; // Only at start of each day
+  
+          const day = date.getUTCDate();
+          const mon = months[date.getUTCMonth()];
+          label = `${day}-${mon}`;
+        }
 
         // x position: proportional along chart width
         const fraction = totalPoints > 1 ? idx / (totalPoints - 1) : 0;

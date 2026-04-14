@@ -41,6 +41,15 @@ export default function buildTrendChart(pptx: any, contents: any, titleSlide: st
       name: s.name,
       labels: s.data.map((d: any) => {
         const ts = d.timestamp || '';
+        const match = ts.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (match) {
+          const yr = match[1].slice(-2);
+          const monIndex = parseInt(match[2], 10) - 1;
+          const day = parseInt(match[3], 10);
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return `${day}-${months[monIndex]}-${yr}`;
+        }
+        
         const date = new Date(ts);
         if (!isNaN(date.getTime())) {
           const day = date.getDate();
@@ -115,6 +124,15 @@ export default function buildTrendChart(pptx: any, contents: any, titleSlide: st
       name: s.name,
       labels: s.data.map((d: any) => {
         const ts = d.timestamp || '';
+        const match = ts.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        if (match) {
+          const yr = match[1].slice(-2);
+          const monIndex = parseInt(match[2], 10) - 1;
+          const day = parseInt(match[3], 10);
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return `${day}-${months[monIndex]}-${yr}`;
+        }
+        
         const date = new Date(ts);
         if (!isNaN(date.getTime())) {
           const day = date.getDate();

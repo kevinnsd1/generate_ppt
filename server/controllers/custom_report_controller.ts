@@ -626,10 +626,9 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
             const uniqueDays: string[] = [];
             firstSeries.data.forEach((pt: any) => {
               const ts = pt.timestamp || '';
-              const date = new Date(ts);
-              if (!isNaN(date.getTime())) {
-                // Use UTC date string as unique key (YYYY-MM-DD)
-                const dayKey = date.toISOString().slice(0, 10);
+              const match = ts.match(/^(\d{4}-\d{2}-\d{2})T/);
+              if (match) {
+                const dayKey = match[1];
                 if (!uniqueDays.includes(dayKey)) uniqueDays.push(dayKey);
               }
             });
@@ -673,9 +672,9 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
           if (d.visualization === 'hourly_line' && d.details?.series?.[0]?.data) {
             d.details.series[0].data.forEach((pt: any) => {
               const ts = pt.timestamp || '';
-              const date = new Date(ts);
-              if (!isNaN(date.getTime())) {
-                const dayKey = date.toISOString().slice(0, 10);
+              const match = ts.match(/^(\d{4}-\d{2}-\d{2})T/);
+              if (match) {
+                const dayKey = match[1];
                 if (!allDays.includes(dayKey)) allDays.push(dayKey);
               }
             });
@@ -709,9 +708,9 @@ function splitSlidesWithLargeData(slides: Slide[]): Slide[] {
               if (s.data) {
                 s.data = s.data.filter((pt: any) => {
                   const ts = pt.timestamp || '';
-                  const date = new Date(ts);
-                  if (!isNaN(date.getTime())) {
-                    return allowedDays.has(date.toISOString().slice(0, 10));
+                  const match = ts.match(/^(\d{4}-\d{2}-\d{2})T/);
+                  if (match) {
+                    return allowedDays.has(match[1]);
                   }
                   return false;
                 });
