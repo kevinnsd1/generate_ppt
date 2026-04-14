@@ -11,7 +11,7 @@ import cors from 'cors';
 import path from 'path';
 
 // Load config file
-dotenv.config({ path: './server/config/config.env' });
+dotenv.config();
 const env = process.env.NODE_ENV || 'development';
 const config = require('./server/config/config.json')[env];
 
@@ -19,7 +19,7 @@ const app: Application = express();
 
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
-const PORT: number = config.port;
+const PORT: number = process.env.PORT ? parseInt(process.env.PORT) : config.port;
 
 // Register custom report route
 app.use('/api/v1/custom_report', customReportApiRoute);
