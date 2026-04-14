@@ -5,7 +5,6 @@ package-lock.json
 public/
 files/
 .env
-server/config/config.json
 
 # TypeScript
 dist/
