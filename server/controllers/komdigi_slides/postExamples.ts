@@ -43,6 +43,8 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
         const addImageReq: any = {
            x: currX + 0.1, 
            y: currY + 0.1, 
+           w: blockW - 0.2, 
+           h: blockH - 0.2,
            sizing: { type: 'contain', w: blockW - 0.2, h: blockH - 0.2 }
         };
 
