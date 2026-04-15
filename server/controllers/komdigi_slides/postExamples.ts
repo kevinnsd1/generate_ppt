@@ -7,9 +7,15 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
 
   // Judul Utama
   peSlide.addText(titleSlide || 'CONTOH POSTINGAN', {
-    x: 2.5, y: 1.45, w: 8.33, h: 0.55,
-    fontSize: 20, bold: true, color: '1A1A1A',
-    align: 'center', fontFace: 'Arial',
+    x: 2.5,
+    y: 1.45,
+    w: 8.33,
+    h: 0.55,
+    fontSize: 20,
+    bold: true,
+    color: '1A1A1A',
+    align: 'center',
+    fontFace: 'Arial',
   });
 
   // --- GRID SECTION ---
@@ -19,7 +25,7 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
     const startY = 2.4;
     const colGap = 0.25;
     const rowGap = 0.25;
-    const blockW = 3.87; // Total ~12.13 width
+    const blockW = 2.1; // Total ~12.13 width
     const blockH = 2.1;
 
     peData.images.forEach((imgObj: any, index: number) => {
@@ -28,13 +34,18 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
       const col = index % 3;
       const row = Math.floor(index / 3);
 
-      const currX = startX + (col * (blockW + colGap));
-      const currY = startY + (row * (blockH + rowGap));
+      const currX = startX + col * (blockW + colGap);
+      const currY = startY + row * (blockH + rowGap);
 
       // Draw bounding box (rounded rectangle ringan)
       peSlide.addShape(pptx.shapes.ROUNDED_RECTANGLE, {
-        x: currX, y: currY, w: blockW, h: blockH,
-        fill: 'FFFFFF', line: { color: 'B3C6E7', width: 1 }, rectRadius: 0.1
+        x: currX,
+        y: currY,
+        w: blockW,
+        h: blockH,
+        fill: 'FFFFFF',
+        line: { color: 'B3C6E7', width: 1 },
+        rectRadius: 0.1,
       });
 
       // Draw Image (contain, diperkecil agar tidak stretch di dalam kotak)
@@ -45,11 +56,11 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
         const imgW = blockW - imgPadX * 2;
         const imgH = blockH - imgPadY * 2;
         const addImageReq: any = {
-           x: currX + imgPadX,
-           y: currY + imgPadY,
-           w: imgW,
-           h: imgH,
-           sizing: { type: 'contain', w: imgW, h: imgH }
+          x: currX + imgPadX,
+          y: currY + imgPadY,
+          w: imgW,
+          h: imgH,
+          sizing: { type: 'contain', w: imgW, h: imgH },
         };
 
         if (imgStr.startsWith('http')) {
@@ -74,8 +85,14 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
   // Footer Note
   if (peData.footerNote) {
     peSlide.addText(peData.footerNote, {
-      x: 0, y: 7.2, w: 13.33, h: 0.3,
-      fontSize: 9, color: '888888', align: 'center', fontFace: 'Arial'
+      x: 0,
+      y: 7.2,
+      w: 13.33,
+      h: 0.3,
+      fontSize: 9,
+      color: '888888',
+      align: 'center',
+      fontFace: 'Arial',
     });
   }
 }
