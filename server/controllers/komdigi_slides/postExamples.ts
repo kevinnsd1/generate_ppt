@@ -21,12 +21,16 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
   // --- GRID SECTION ---
   if (peData.images && Array.isArray(peData.images)) {
     // Definisi Grid (3 kolom, 2 baris)
-    const startX = 0.6;
-    const startY = 2.4;
     const colGap = 0.25;
     const rowGap = 0.25;
-    const blockW = 2.1; // Total ~12.13 width
+    const blockW = 2.1;
     const blockH = 2.1;
+    
+    // Hitung posisi tengah (slide width pptx default komdigi ~13.33)
+    const maxCols = Math.min(peData.images.length, 3);
+    const gridTotalWidth = (maxCols * blockW) + ((maxCols - 1) * colGap);
+    const startX = (13.33 - gridTotalWidth) / 2;
+    const startY = 2.4;
 
     peData.images.forEach((imgObj: any, index: number) => {
       if (index >= 6) return; // Hanya muat maksimal 6 (3x2)
