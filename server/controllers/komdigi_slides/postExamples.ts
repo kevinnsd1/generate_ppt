@@ -37,15 +37,19 @@ export default function buildPostExamples(pptx: any, contents: any, titleSlide: 
         fill: 'FFFFFF', line: { color: 'B3C6E7', width: 1 }, rectRadius: 0.1
       });
 
-      // Draw Image (contain to fit inside bounding box)
+      // Draw Image (contain, diperkecil agar tidak stretch di dalam kotak)
       if (imgObj.image) {
         let imgStr = imgObj.image;
+        const imgPadX = 0.35;
+        const imgPadY = 0.25;
+        const imgW = blockW - imgPadX * 2;
+        const imgH = blockH - imgPadY * 2;
         const addImageReq: any = {
-           x: currX + 0.1, 
-           y: currY + 0.1, 
-           w: blockW - 0.2, 
-           h: blockH - 0.2,
-           sizing: { type: 'contain', w: blockW - 0.2, h: blockH - 0.2 }
+           x: currX + imgPadX,
+           y: currY + imgPadY,
+           w: imgW,
+           h: imgH,
+           sizing: { type: 'contain', w: imgW, h: imgH }
         };
 
         if (imgStr.startsWith('http')) {
